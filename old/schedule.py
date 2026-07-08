@@ -40,20 +40,6 @@ class ScheduleEntry:
     def is_fixed_event(self) -> bool:
         return not self.is_learning_slot
 
-    def to_dict(self) -> dict:
-        return {
-            "cycle_day": self.cycle_day,
-            "event_id": self.event_id,
-            "parent_event": self.parent_event,
-            "event_type": self.event_type,
-            "event_name": self.event_name,
-            "start_time": self.start_time,
-            "end_time": self.end_time,
-            "slot_no": self.slot_no,
-            "activity": self.activity,
-            "notes": self.notes,
-        }
-
 
 @dataclass
 class Schedule:
@@ -102,17 +88,6 @@ class Schedule:
             "days": self.total_days(),
             "entries": len(self.entries),
             "learning_slots": self.total_learning_slots(),
-        }
-
-    def to_dict(self) -> dict:
-        return {
-            "schedule_id": self.schedule_id,
-            "academic_year": self.academic_year,
-            "division": self.division,
-            "level": self.level,
-            "term": self.term,
-            "version": self.version,
-            "entries": [entry.to_dict() for entry in self.entries],
         }
 
     def __str__(self) -> str:
