@@ -1,33 +1,44 @@
 """
 tests/test_export_pipeline.py
 
-Integration test for the SGS Academic Planner export pipeline.
-
-Pipeline:
-Knowledge Masters -> Loader -> Schedule Factory -> Exporters
+Sprint 2.2 Final - Export Pipeline Integration Test
 """
 
 from pathlib import Path
+import sys
+import time
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from data.loader import load_master_files
 from scheduling.schedule_factory import create_schedule
 from scheduling.exporter import JSONExporter, CSVExporter, ExcelExporter
 
 
+def build_filename(schedule, extension: str) -> str:
+    """Build a standard SGS schedule export filename."""
+    return (
+        f"SGS_Schedule_"
+        f"{schedule.division}_"
+        f"{schedule.level}_"
+        f"Term{schedule.term}_"
+        f"{schedule.academic_year}_"
+        f"v{schedule.version}."
+        f"{extension}"
+    )
+
+
 def main():
+    start = time.perf_counter()
+
     print("=" * 70)
-    print("SGS Academic Planner - Export Pipeline Test")
+    print("SGS Academic Planner - Export Pipeline")
     print("=" * 70)
 
-    masters_folder = "masters"
-    output_folder = Path("output") / "2026-27"
-    output_folder.mkdir(parents=True, exist_ok=True)
+    masters = load_master_files(PROJECT_ROOT / "masters")
 
-    print("\nLoading Knowledge Masters...")
-    masters = load_master_files(masters_folder)
-    print(f"Loaded {len(masters)} master workbook(s).")
-
-    print("\nCreating schedule...")
     schedule = create_schedule(
         masters=masters,
         academic_year="2026-27",
@@ -36,31 +47,37 @@ def main():
         term=1,
     )
 
-    print(schedule)
-    print(f"Entries           : {len(schedule.entries)}")
-    print(f"Learning Slots    : {schedule.total_learning_slots()}")
-    print(f"Days              : {schedule.total_days()}")
+    output_folder = PROJECT_ROOT / "output" / schedule.academic_year
+    output_folder.mkdir(parents=True, exist_ok=True)
 
-    print("\nExporting...")
+    exports = [
+        (JSONExporter(), "json"),
+        (CSVExporter(), "csv"),
+        (ExcelExporter(), "xlsx"),
+    ]
 
-    json_file = output_folder / "schedule.json"
-    csv_file = output_folder / "schedule.csv"
-    excel_file = output_folder / "schedule.xlsx"
+    created = []
 
-    JSONExporter().export(schedule, json_file)
-    CSVExporter().export(schedule, csv_file)
-    ExcelExporter().export(schedule, excel_file)
+    for exporter, extension in exports:
+        filename = build_filename(schedule, extension)
+        path = output_folder / filename
+        exporter.export(schedule, path)
+        created.append(path)
 
-    print("\nVerifying output files...")
+    print("\nExport Summary")
+    print("-" * 70)
+    print(f"Schedule ID : {schedule.schedule_id}")
+    print(f"Division    : {schedule.division}")
+    print(f"Level       : {schedule.level}")
+    print(f"Term        : {schedule.term}")
+    print(f"Entries     : {len(schedule.entries)}")
+    print()
 
-    for f in (json_file, csv_file, excel_file):
-        if f.exists():
-            print(f"✓ {f.name} ({f.stat().st_size:,} bytes)")
-        else:
-            raise FileNotFoundError(f"{f} was not created.")
+    for path in created:
+        print(f"✓ {path.name}")
+        print(f"  {path.stat().st_size:,} bytes")
 
-    print("\n" + "=" * 70)
-    print("PASS - Export pipeline completed successfully.")
+    print(f"\nCompleted in {time.perf_counter() - start:.2f} seconds")
     print("=" * 70)
 
 
